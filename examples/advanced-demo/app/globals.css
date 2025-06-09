@@ -1,0 +1,249 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: #333;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.app {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+  color: white;
+}
+
+.header h1 {
+  font-size: 3rem;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.header p {
+  font-size: 1.2rem;
+  margin: 10px 0 0 0;
+  opacity: 0.9;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.demo-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.demo-section:hover {
+  transform: translateY(-2px);
+}
+
+.demo-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 1.5rem;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 10px;
+}
+
+.demo-section h3 {
+  margin: 20px 0 10px 0;
+  color: #555;
+  font-size: 1.2rem;
+}
+
+.button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 4px;
+  transition: all 0.2s ease;
+}
+
+.button:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.button.danger {
+  background: #e53e3e;
+}
+
+.button.danger:hover {
+  background: #c53030;
+}
+
+.button.success {
+  background: #38a169;
+}
+
+.button.success:hover {
+  background: #2f855a;
+}
+
+.input {
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.render-counter {
+  display: inline-block;
+  background: #fed7d7;
+  color: #c53030;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.render-counter.optimized {
+  background: #c6f6d5;
+  color: #2f855a;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.stat-card {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #667eea;
+  margin: 0;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 4px 0 0 0;
+}
+
+.todo-item {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.todo-item.completed {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.comparison-section {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+  color: #2d3436;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.comparison-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.monitoring-section {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #a8e6cf 0%, #81c784 100%);
+  color: #1b5e20;
+}
+
+.json-output {
+  background: #2d3748;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  margin: 12px 0;
+}
+
+.method-demo {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 12px 0;
+  background: #f8f9fa;
+}
+
+.method-demo h4 {
+  margin: 0 0 12px 0;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
+.array-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
