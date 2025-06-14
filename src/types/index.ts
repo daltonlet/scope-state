@@ -91,26 +91,86 @@ export interface ProxyConfig {
    *  @default false @example true
    */
   selectiveProxying: boolean;
+  /** Whether to track path usage (this is a monitoring feature that displays usage statistics in the console).
+   *  @default true
+   */
   trackPathUsage: boolean;
+  /** Whether to proxy deep objects lazily (this is a performance optimization that prevents unnecessary proxy creation for deeply nested objects).
+   *  @default false
+   */
   lazyProxyDeepObjects: boolean;
+  /** The paths to pre-proxy, EVEN if they are not accessed yet and/or a component which is using them is not mounted yet.
+   *  @default [] @example ['user.name', 'theme']
+   */
   preProxyPaths: string[];
+  /** The maximum length of a path (number of nested objects / depth).
+   *  @default 20
+   */
   maxPathLength: number;
+  /** Whether to track array changes.
+   *  @default true
+   */
   smartArrayTracking: boolean;
+  /** Whether to create proxies in a non-blocking, asynchronous way (this is a performance optimization that prevents blocking the main thread for long periods of time).
+   *  @default true
+   */
   nonBlockingProxyCreation: boolean;
+  /** The batch size for proxy creation (the number of proxies to create at once).
+   *  @default 1
+   */
   batchSize: number;
+  /** Whether to prioritize UI objects. If ```true```, you must provide a ```priorityPaths``` array in this config object.
+   *  @default true
+   */
   prioritizeUIObjects: boolean;
-  maxQueueSize: number;
-  memoryLimit: boolean;
-  memoryThreshold: number;
-  targetMemoryUsage: number;
-  proxyEvictionStrategy: 'lru';
-  disableProxyingUnderPressure: boolean;
-  maxProxyCacheSize: number;
-  ultraSelectiveProxying: boolean;
-  proxySelectorPaths: boolean;
-  forceMemoryCheck: boolean;
-  aggressiveMemoryManagement: boolean;
+  /** The paths to prioritize. Must be paired with ```prioritizeUIObjects``` being ```true```.
+   *  @default [] @example ['user.name', 'theme']
+   */
   priorityPaths: string[];
+  /** The maximum size of the proxy queue (the number of proxies to create at once).
+   *  @default 1000
+   */
+  maxQueueSize: number;
+  /** Whether to limit the memory usage of the proxy cache.
+   *  @default false
+   */
+  memoryLimit: boolean;
+  /** The memory threshold for the proxy cache (the percentage of memory usage at which the proxy cache will be cleared).
+   *  @default 1
+   */
+  memoryThreshold: number;
+  /** The target memory usage (in megabytes - MB) for the proxy cache (the percentage of memory usage at which the proxy cache will be cleared).
+   *  @default 3000
+   */
+  targetMemoryUsage: number;
+  /** The eviction strategy for the proxy cache.
+   *  @default 'lru'
+   */
+  proxyEvictionStrategy: 'lru';
+  /** Whether to disable proxying under pressure (this is a performance optimization that prevents proxying under high memory usage).
+   *  @default false
+   */
+  disableProxyingUnderPressure: boolean;
+  /** The maximum size of the proxy cache (the number of proxies to create at once).
+   *  @default 5000
+   */
+  maxProxyCacheSize: number;
+  /** Whether to enable ultra selective proxying. This causes most proxies to be ignored, unless they are accessed explicitly by a component or marked as a priority path.
+   *  @default false
+   */
+  ultraSelectiveProxying: boolean;
+  /** Whether to proxy selector paths. If ```true```, the proxy will be created for all paths that are accessed by a component (including the parent paths of the target value).
+   *  @default true
+   */
+  proxySelectorPaths: boolean;
+  /** Whether to force a memory check.
+   *  @default false
+   */
+  forceMemoryCheck: boolean;
+  /** Whether to enable aggressive memory management. This causes the proxy cache to be cleared when the memory usage exceeds the target memory usage.
+   *  @default false
+   */
+  aggressiveMemoryManagement: boolean;
 }
 
 export interface MonitoringConfig {

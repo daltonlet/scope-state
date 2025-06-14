@@ -61,7 +61,7 @@ export const $ = configure<DemoState>({
   },
   persistence: {
     enabled: true,
-    paths: ['user', 'todos', 'counters'],
+    paths: undefined,
     blacklist: ['demo'],
     batchDelay: 300,
   },

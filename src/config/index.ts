@@ -101,7 +101,7 @@ export const presets = {
       autoLeakDetection: true,
     },
     proxy: {
-      maxDepth: 3,
+      maxDepth: 6,
       smartArrayTracking: true,
     },
   }),

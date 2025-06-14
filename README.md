@@ -5,8 +5,6 @@ A tiny reactive state manager with global reach and local clarity. Built for mod
 
 Built for developers who hate Redux and love clarity.
 
-
-
 ## Why Scope State?
 
 Scope State gives you **global reactive state** with:
@@ -18,17 +16,54 @@ Scope State gives you **global reactive state** with:
 
 Just write:
 
-```ts
-import { $, useScope } from 'scope-state';
+```tsx
+import { useScope, configure } from 'scope-state';
 
-export const ProfilePage = () => {
-  const name = useScope(() => $.user.name);
-  return <h1>{name}</h1>
+const $ = configure({
+  initialState: {
+    counter: {
+      count: 0,
+    },
+    user: { 
+      name: 'John', 
+      age: 30
+    }
+  }
+});
+
+const CounterComponent = () => {
+  
+  const count = useScope(() => $.counter.count); // subscribe to only the count
+
+  const handleCountIncrement = () => {
+    // You can mutate the state directly
+    $.counter.count++;
+    // OR use the updater function
+    $.counter.$update("count", (count) => count + 1);
+  }
+
+  const resetCount = () => {
+    // use the $set method to replace the entire object
+    $.counter.$set({ count: 0 }); 
+    // OR use the $merge method to merge the new properties with the existing ones
+    $.counter.$merge({ count: 0 });
+    // OR use the $reset method to reset the entire object
+    $.counter.$reset();
+    // OR literally replace the count with a direct assignment
+    $.counter.count = 0;
+  }
+  
+  return (
+    <div>
+      <h1>{count}</h1>
+      <button onClick={handleCountIncrement}>+ Increment</button>
+      <button onClick={resetCount}>🔄 Reset</button>
+    </div>
+  )
 }
 ```
 
 That's it. It tracks dependencies automatically and re-renders only what changed.
-
 
 
 ## What Makes It Different?
@@ -40,7 +75,6 @@ That's it. It tracks dependencies automatically and re-renders only what changed
 - **Built-in debug tools** 
 - **Feels like magic**
 - **Read and set states *independently* —** outside of functional components or custom hooks
-
 
 
 ## Getting Started

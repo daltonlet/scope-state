@@ -4,7 +4,7 @@ This interactive demo showcases all the advanced features of Scope State and dem
 
 ## Features Demonstrated
 
-### 🔄 Core Methods
+### Core Methods
 - **$merge**: Merge properties into objects without removing existing ones
 - **$set**: Completely replace object properties  
 - **$update**: Update properties using updater functions
@@ -12,18 +12,18 @@ This interactive demo showcases all the advanced features of Scope State and dem
 - **push/splice**: Enhanced array methods with reactivity
 - **raw()**: Get plain JavaScript objects without proxies
 
-### 🎯 Selective Rendering
+### Selective Rendering
 - Components only re-render when their specific data changes
 - Notice how the "Selective Rendering Demo" component has minimal renders
 - Compare render counts between different components
 
-### 📊 Monitoring & Performance
+### Monitoring & Performance
 - Real-time monitoring statistics
 - Memory leak detection
 - Performance metrics and timing data
 - Proxy cache statistics
 
-### 💾 Persistence
+### Persistence
 - Automatic state persistence to localStorage
 - Selective path persistence (user, todos, counters are persisted)
 - Blacklisted paths (demo data is not persisted)
@@ -38,7 +38,7 @@ This interactive demo showcases all the advanced features of Scope State and dem
 
 2. Start the development server:
    ```bash
-   npm start
+   npm run dev
    ```
 
 3. Open [http://localhost:3000](http://localhost:3000) to view the demo
