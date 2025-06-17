@@ -14,7 +14,9 @@
 		"react-dom": "^18.2.0",
 		"next": "^14.0.0",
 		"scope-state": "file:../..",
-		"lucide-react": "^0.263.1"
+		"lucide-react": "^0.263.1",
+		"localforage": "^1.10.0",
+		"localforage-driver-memory": "^1.0.5"
 	},
 	"devDependencies": {
 		"@types/react": "^18.2.21",
