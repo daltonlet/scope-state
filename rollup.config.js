@@ -3,7 +3,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 
 export default [
-  // ESM build
+  // ESM build (also emits type declarations)
   {
     input: 'src/index.ts',
     output: {
@@ -16,13 +16,10 @@ export default [
       resolve(),
       commonjs(),
       typescript({
-        tsconfig: './tsconfig.json',
+        tsconfig: './tsconfig.build.json',
         declaration: true,
         declarationDir: 'dist',
         declarationMap: true,
-        allowJs: true,
-        esModuleInterop: true,
-        composite: true,
       }),
     ],
   },
@@ -39,7 +36,7 @@ export default [
       resolve(),
       commonjs(),
       typescript({
-        tsconfig: './tsconfig.json',
+        tsconfig: './tsconfig.build.json',
       }),
     ],
   },

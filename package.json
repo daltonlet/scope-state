@@ -1,15 +1,12 @@
 {
 	"name": "scope-state",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "Scope State is the simplest global state system for React that you've ever used — no boilerplate, no spreading, no mental overhead.",
 	"main": "dist/index.js",
 	"module": "dist/index.esm.js",
 	"types": "dist/index.d.ts",
 	"files": [
-		"dist/index.js",
-		"dist/index.esm.js",
-		"dist/index.d.ts",
-		"dist/src",
+		"dist",
 		"README.md"
 	],
 	"scripts": {
