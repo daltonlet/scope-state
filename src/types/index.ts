@@ -187,6 +187,74 @@ export interface MonitoringConfig {
   leakScanMinimumRenderCycles: number;
 }
 
+/**
+ * A value that may or may not be wrapped in a Promise.
+ *
+ * This allows StorageAdapter methods to be implemented synchronously
+ * (e.g. MMKV, localStorage) or asynchronously (e.g. AsyncStorage, IndexedDB).
+ * The persistence layer always `await`s the result, which is a no-op for
+ * synchronous return values.
+ */
+export type MaybePromise<T> = T | Promise<T>;
+
+/**
+ * A pluggable storage backend for persistence.
+ *
+ * Implement this interface to use any storage engine (MMKV, AsyncStorage,
+ * localStorage, IndexedDB, etc.) with Scope State's persistence layer.
+ *
+ * Methods can return either a plain value or a Promise — the persistence
+ * layer `await`s every call, so both sync and async implementations work
+ * seamlessly with zero overhead for synchronous backends.
+ *
+ * When a custom adapter is provided, Scope State automatically wraps it
+ * in an in-memory cache layer. This means:
+ * - On app startup the cache is empty, so the first render uses `initialState`
+ *   (preventing SSR hydration mismatches).
+ * - After `hydrateState()` runs (manually or via `autoHydrate`), persisted
+ *   data is loaded from the backing store into the cache.
+ * - All subsequent reads are served instantly from the in-memory cache.
+ * - All writes go to both the cache and the backing store.
+ *
+ * @example
+ * // React Native with MMKV (synchronous — no async/await needed!)
+ * import { MMKV } from 'react-native-mmkv';
+ * const mmkv = new MMKV();
+ * const mmkvAdapter: StorageAdapter = {
+ *   getItem: (key) => mmkv.getString(key) ?? null,
+ *   setItem: (key, value) => { mmkv.set(key, value); },
+ *   removeItem: (key) => { mmkv.delete(key); },
+ *   keys: () => mmkv.getAllKeys(),
+ *   clear: () => { mmkv.clearAll(); },
+ * };
+ *
+ * @example
+ * // React Native with AsyncStorage (asynchronous)
+ * import AsyncStorage from '@react-native-async-storage/async-storage';
+ * const asyncStorageAdapter: StorageAdapter = {
+ *   getItem: (key) => AsyncStorage.getItem(key),
+ *   setItem: (key, value) => AsyncStorage.setItem(key, value).then(() => {}),
+ *   removeItem: (key) => AsyncStorage.removeItem(key).then(() => {}),
+ *   keys: () => AsyncStorage.getAllKeys().then(k => [...k]),
+ *   clear: () => AsyncStorage.clear().then(() => {}),
+ * };
+ */
+export interface StorageAdapter {
+  /** Retrieve a value by key. Returns null if the key does not exist. */
+  getItem(key: string): MaybePromise<string | null>;
+  /** Store a string value under the given key. */
+  setItem(key: string, value: string): MaybePromise<void>;
+  /** Remove the value for the given key. */
+  removeItem(key: string): MaybePromise<void>;
+  /** Return all keys currently stored. */
+  keys(): MaybePromise<string[]>;
+  /**
+   * Optional. Clear all keys from storage.
+   * If not provided, `persistenceAPI.reset()` will iterate and remove keys individually.
+   */
+  clear?(): MaybePromise<void>;
+}
+
 export interface PersistenceConfig {
   /** Whether persistence is enabled */
   enabled: boolean;
@@ -203,6 +271,47 @@ export interface PersistenceConfig {
    *  @default 300
    */
   batchDelay: number;
+  /**
+   * Whether to automatically hydrate state from storage when `configure()` is called.
+   *
+   * When `true` (default), persisted state is loaded automatically after configuration.
+   * When `false`, you must call `persistenceAPI.rehydrate()` or `hydrateState()` manually
+   * to load persisted data. This is useful when you need to control exactly when
+   * hydration happens (e.g., after a loading screen, after auth, etc.).
+   *
+   * @default true
+   */
+  autoHydrate?: boolean;
+  /**
+   * A custom storage adapter for persistence.
+   * If not provided, defaults to a localStorage-based adapter in browsers
+   * and a memory adapter in non-browser environments (SSR / Node).
+   *
+   * All adapters are automatically wrapped in an in-memory cache layer to
+   * prevent hydration errors. The cache starts empty (so the first render
+   * uses `initialState`), and is populated when hydration runs.
+   *
+   * Use this to plug in any storage backend (MMKV, AsyncStorage, IndexedDB, etc.).
+   *
+   * @example
+   * import { createLocalStorageAdapter } from 'scope-state';
+   * persistence: { storageAdapter: createLocalStorageAdapter() }
+   *
+   * @example
+   * // Synchronous adapter (MMKV)
+   * import { MMKV } from 'react-native-mmkv';
+   * const mmkv = new MMKV();
+   * persistence: {
+   *   storageAdapter: {
+   *     getItem: (key) => mmkv.getString(key) ?? null,
+   *     setItem: (key, value) => { mmkv.set(key, value); },
+   *     removeItem: (key) => { mmkv.delete(key); },
+   *     keys: () => mmkv.getAllKeys(),
+   *     clear: () => { mmkv.clearAll(); },
+   *   }
+   * }
+   */
+  storageAdapter?: StorageAdapter;
 }
 
 export interface ScopeConfig<T extends Record<string, any> = Record<string, any>> {
@@ -214,8 +323,6 @@ export interface ScopeConfig<T extends Record<string, any> = Record<string, any>
   monitoring?: Partial<MonitoringConfig>;
   /** Persistence configuration */
   persistence?: Partial<PersistenceConfig>;
-  /** Storage instance for persistence */
-  storage?: any;
 }
 
 // Utility types

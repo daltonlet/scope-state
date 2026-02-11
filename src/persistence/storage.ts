@@ -1,51 +1,50 @@
-import localforage from 'localforage';
-import * as memoryDriver from 'localforage-driver-memory';
-
-export let storage: LocalForage | null = null;
+import type { StorageAdapter } from '../types';
+import { getDefaultAdapter, createCachedAdapter } from './adapters';
 
 /**
- * Initialize storage for persistence
+ * The active storage adapter used by the persistence layer.
+ *
+ * Defaults to a localStorage adapter in browsers or a memory adapter in SSR/Node.
+ * Can be overridden via `configure()` or `setStorageAdapter()`.
+ *
+ * All adapters are automatically wrapped in an in-memory cache layer
+ * to prevent hydration mismatches and provide instant reads.
  */
-export function initializeStorage(): void {
-  try {
-    if (typeof window !== 'undefined') {
-      storage = localforage.createInstance({
-        name: 'SCOPE_STATE',
-        description: 'Scope state management storage'
-      });
+let storageAdapter: (StorageAdapter & { warmCache?(): Promise<void> }) | null = null;
 
-      // Add memory driver as fallback
-      localforage.defineDriver(memoryDriver);
-      localforage.setDriver([
-        localforage.INDEXEDDB,
-        localforage.LOCALSTORAGE,
-        localforage.WEBSQL,
-        memoryDriver._driver
-      ]);
-
-      console.log('💾 Storage initialized successfully');
-    }
-  } catch (error) {
-    console.error('❌ Error creating storage instance:', error);
-    storage = null;
+/**
+ * Get the current storage adapter, lazily initializing the default if needed.
+ */
+export function getStorageAdapter(): StorageAdapter & { warmCache?(): Promise<void> } {
+  if (!storageAdapter) {
+    // Default adapters (localStorage, memory) are already fast/sync,
+    // so we don't need to wrap them in a cache — they ARE the cache.
+    storageAdapter = getDefaultAdapter();
   }
+  return storageAdapter;
 }
 
 /**
- * Get the current storage instance
+ * Set a custom storage adapter.
+ *
+ * Synchronous adapters (like `createLocalStorageAdapter` and `createMemoryAdapter`)
+ * are stored directly — this enables **synchronous hydration** during `configure()`,
+ * so components render with persisted values on the very first render (no flash of
+ * default values).
+ *
+ * For asynchronous adapters (AsyncStorage, MMKV with async API), wrap them in
+ * `createCachedAdapter()` before passing to `configure()`. The cache layer provides
+ * instant reads after the initial warm-up.
+ *
+ * @param adapter - A StorageAdapter implementation
  */
-export function getStorage(): LocalForage | null {
-  return storage;
+export function setStorageAdapter(adapter: StorageAdapter): void {
+  storageAdapter = adapter as StorageAdapter & { warmCache?(): Promise<void> };
 }
 
 /**
- * Set a custom storage instance
+ * Reset the storage adapter to the environment default.
  */
-export function setStorage(customStorage: LocalForage): void {
-  storage = customStorage;
+export function resetStorageAdapter(): void {
+  storageAdapter = null;
 }
-
-// Initialize storage by default
-if (typeof window !== 'undefined') {
-  initializeStorage();
-} 

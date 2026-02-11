@@ -4,6 +4,18 @@ import { monitoringConfig } from '../config';
 // Path-specific listeners
 export const pathListeners: PathListeners = new Map();
 
+// Post-notification callback — used by the persistence layer to react to state changes
+// without creating a circular dependency (listeners -> persistence -> config -> listeners).
+let onStateChangeCallback: ((path: string[]) => void) | null = null;
+
+/**
+ * Register a callback that fires after every notifyListeners call.
+ * Used internally by the persistence system to batch-persist changes.
+ */
+export function setOnStateChangeCallback(callback: (path: string[]) => void): void {
+  onStateChangeCallback = callback;
+}
+
 // Statistics for monitoring
 export let monitoringStats: MonitoringStats = {
   proxyCount: 0,
@@ -127,6 +139,11 @@ export function notifyListeners(path: string[]): void {
   if (monitoringConfig.enabled && monitoringConfig.logStateChanges && startTime > 0) {
     const duration = logTimingEnd('Notification cycle', startTime);
     updateTimingStat('notify', duration);
+  }
+
+  // Fire the post-notification callback (persistence, etc.)
+  if (onStateChangeCallback) {
+    onStateChangeCallback(path);
   }
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { configure } from 'scope-state';
+import { configure, getDefaultAdapter } from '../../../src/index';
 
 // Demo store schema
 interface DemoState {
@@ -35,12 +35,12 @@ interface DemoState {
 export const $ = configure<DemoState>({
   initialState: {
     user: {
-      name: 'John Doe',
-      email: 'john@example.com',
+      name: '',
+      email: '',
       preferences: {
-        theme: 'light',
-        notifications: true,
-        tags: ['developer', 'react', 'typescript']
+        theme: 'dark',
+        notifications: false,
+        tags: []
       }
     },
     todos: [
@@ -64,6 +64,8 @@ export const $ = configure<DemoState>({
     paths: undefined,
     blacklist: ['demo'],
     batchDelay: 300,
+    storageAdapter: getDefaultAdapter(),
+    autoHydrate: true
   },
   monitoring: {
     enabled: true,
@@ -77,9 +79,9 @@ export const $ = configure<DemoState>({
     aggressiveMemoryManagement: false,
     lazyProxyDeepObjects: false,
     nonBlockingProxyCreation: false,
-    smartArrayTracking: false,
+    smartArrayTracking: true,
     proxySelectorPaths: true,
-    selectiveProxying: false,
+    selectiveProxying: true,
     prioritizeUIObjects: true,
     maxPathLength: 10,
     disableProxyingUnderPressure: false,

@@ -1,6 +1,6 @@
 {
 	"name": "scope-state",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Scope State is the simplest global state system for React that you've ever used — no boilerplate, no spreading, no mental overhead.",
 	"main": "dist/index.js",
 	"module": "dist/index.esm.js",
@@ -63,7 +63,5 @@
 		"typescript": "^4.9.5"
 	},
 	"dependencies": {
-		"localforage": "^1.10.0",
-		"localforage-driver-memory": "^1.0.5"
 	}
 }

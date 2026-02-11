@@ -51,6 +51,7 @@ export const defaultPersistenceConfig: PersistenceConfig = {
   paths: [],
   blacklist: [],
   batchDelay: 300,
+  autoHydrate: true,
 };
 
 // Current active configurations (will be modified by configure())

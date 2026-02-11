@@ -1,12 +1,16 @@
+
 // Main exports for the library
 export { useScope } from './hooks/useScope';
 export { useLocal } from './hooks/useLocal';
 export { getConfig, resetConfig, presets } from './config';
 export { initializeStore, getStore, resetStore } from './core/store';
+import { getListenerCount, getActivePaths, notifyListeners, pathListeners } from './core/listeners';
 
 // Advanced features exports
 export { monitorAPI } from './core/monitoring';
-export { persistenceAPI } from './persistence/advanced';
+export { persistenceAPI, hydrateState, mergePersistedIntoState } from './persistence/advanced';
+export { createLocalStorageAdapter, createMemoryAdapter, createCachedAdapter, getDefaultAdapter } from './persistence/adapters';
+export { setStorageAdapter, getStorageAdapter } from './persistence/storage';
 export {
   setInitialStoreState,
   createAdvancedProxy,
@@ -24,6 +28,8 @@ export type {
   ProxyConfig,
   MonitoringConfig,
   PersistenceConfig,
+  StorageAdapter,
+  MaybePromise,
   CustomMethods,
   CustomArrayMethods,
   StoreType,
@@ -33,11 +39,12 @@ export type {
 } from './types';
 
 // Core functionality
-import { notifyListeners } from './core/listeners';
+import { setOnStateChangeCallback } from './core/listeners';
 import { isCurrentlyTracking, trackDependencies } from './core/tracking';
 import { proxyConfig, monitoringConfig, persistenceConfig } from './config';
 import { createAdvancedProxy, setInitialStoreState, pathUsageStats, selectorPaths, proxyPathMap } from './core/proxy';
-import { addToPersistenceBatch, hydrateState } from './persistence/advanced';
+import { addToPersistenceBatch, mergePersistedIntoState, hydrateState, initializePersistence, setGlobalStoreRef, setGlobalProxyRef } from './persistence/advanced';
+import { setStorageAdapter } from './persistence/storage';
 import type { StoreType, CustomMethods, CustomArrayMethods, ScopeConfig } from './types';
 
 // Global state
@@ -65,30 +72,62 @@ export function configure<T extends Record<string, any>>(
     Object.assign(monitoringConfig, config.monitoring);
   }
   if (config.persistence) {
+    // Register the storage adapter before applying config so it's ready for reads
+    if (config.persistence.storageAdapter) {
+      setStorageAdapter(config.persistence.storageAdapter);
+    }
     Object.assign(persistenceConfig, config.persistence);
   }
 
-  // Update the global store
-  if (config.initialState) {
-    globalStore = { ...config.initialState };
-    // Store initial state for reset functionality
-    setInitialStoreState(globalStore);
+  // ─── Build the store state ───────────────────────────────────────────
+  // For synchronous adapters (localStorage, memory), merge persisted data
+  // into the initial state BEFORE creating the proxy. This way the proxy
+  // wraps the already-correct data and React renders persisted values on
+  // the very first render — no flash of defaults, no re-renders.
+  const originalDefaults = config.initialState;
+  const shouldAutoHydrate = persistenceConfig.enabled && persistenceConfig.autoHydrate !== false;
+  let syncMerged = false;
 
-    if (typeof window !== 'undefined' && monitoringConfig.enabled) {
-      console.log('🏪 Store configured with custom state');
+  if (shouldAutoHydrate && originalDefaults) {
+    const merged = mergePersistedIntoState(originalDefaults as Record<string, any>);
+    if (merged) {
+      globalStore = merged;
+      syncMerged = true;
+    } else {
+      globalStore = { ...originalDefaults };
     }
+  } else if (originalDefaults) {
+    globalStore = { ...originalDefaults };
   }
+
+  // Store original defaults for $reset() (always the un-merged defaults)
+  setInitialStoreState(originalDefaults || globalStore);
+
+  if (typeof window !== 'undefined' && monitoringConfig.enabled) {
+    console.log('🏪 Store configured with custom state');
+  }
+
+  // Store raw store ref (used for serialization during persistence)
+  setGlobalStoreRef(globalStore);
 
   // Create and cache the advanced proxy
   globalStoreProxy = createAdvancedProxy(globalStore);
 
-  // Hydrate persisted state if persistence is enabled
-  if (typeof window !== 'undefined' && persistenceConfig.enabled) {
-    hydrateState(globalStore).then((success) => {
-      if (success && monitoringConfig.enabled) {
-        console.log('🔄 State hydrated from persistence');
-      }
-    });
+  // Store proxy ref (used for writes during hydration so set traps fire)
+  setGlobalProxyRef(globalStoreProxy);
+
+  // ─── Persistence setup ───────────────────────────────────────────────
+  if (persistenceConfig.enabled) {
+    initializePersistence(shouldAutoHydrate);
+
+    // If sync merge didn't work (async adapter), fall back to async hydration
+    if (shouldAutoHydrate && !syncMerged) {
+      hydrateState(globalStoreProxy).then((success) => {
+        if (success && typeof window !== 'undefined' && monitoringConfig.enabled) {
+          console.log('🔄 State hydrated from persistence (async)');
+        }
+      });
+    }
   }
 
   if (typeof window !== 'undefined' && monitoringConfig.enabled) {
@@ -223,29 +262,24 @@ export function $get<T = any>(path: string | string[] | T): T {
   return getProxy<T>(path as string | string[]);
 }
 
-// Enhanced tracking that updates path usage and integrates with persistence
-function enhancedNotifyListeners(path: string[]): void {
-  // Call the original notify function
-  notifyListeners(path);
-
-  // Add to persistence batch if enabled
+// Register the persistence callback so state changes are automatically batched for persistence.
+// This connects the proxy notification system (listeners.ts) to the persistence system (advanced.ts)
+// without creating circular dependencies.
+setOnStateChangeCallback((path: string[]) => {
   if (persistenceConfig.enabled) {
     addToPersistenceBatch(path);
   }
-}
+});
 
 // For debugging - matches original API
 export const debugInfo = {
   getListenerCount: () => {
-    const { getListenerCount } = require('./core/listeners');
     return getListenerCount();
   },
   getPathCount: () => {
-    const { pathListeners } = require('./core/listeners');
     return pathListeners.size;
   },
   getActivePaths: () => {
-    const { getActivePaths } = require('./core/listeners');
     return getActivePaths();
   }
 };
@@ -255,14 +289,8 @@ export const rawStore = globalStore;
 
 // Initialize library with enhanced features
 if (typeof window !== 'undefined') {
-  console.log('🎯 Scope State initialized with advanced features - ready for reactive state management');
-  console.log('💡 Tip: Call configure() with your initialState for full TypeScript support');
-  console.log('🔧 Advanced features: WeakMap caching, leak detection, batch persistence, memory management');
-
-  // Initialize auto-hydration if persistence is enabled
-  if (persistenceConfig.enabled) {
-    setTimeout(() => {
-      hydrateState(globalStore);
-    }, 100);
+  if (monitoringConfig.enabled) {
+    console.log('🎯 Scope State initialized — ready for reactive state management');
+    console.log('💡 Tip: Call configure() with your initialState for full TypeScript support');
   }
-} 
+}

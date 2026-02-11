@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
-import { $local, monitorAPI, optimizeMemoryUsage, useScope } from 'scope-state';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { $local, monitorAPI, optimizeMemoryUsage, useScope } from '../../../src/index';
 import { $ } from '../store/store';
 
 // Render counter hook for demonstrating selective rendering
@@ -25,7 +25,7 @@ function UserProfileDemo() {
     const names = ['John Doe', 'Jane Smith', 'Alice Johnson', 'Bob Wilson'];
     const currentName = user.name;
     const newName = names.find(name => name !== currentName) || names[0];
-    user.name = newName;
+    $.user.name = newName;
 
     // Update demo stats
     $.demo.$merge({
@@ -76,70 +76,72 @@ function UserProfileDemo() {
   };
 
   return (
-    <div className="demo-section">
-      <h2>
-        User Profile Demo
-        <span className="render-counter optimized">
-          Renders: {renderCount}
-        </span>
-      </h2>
+    <Suspense fallback={<div>Loading...</div>}>
+      <div className="demo-section" suppressHydrationWarning>
+        <h2>
+          User Profile Demo
+          <span className="render-counter optimized">
+            Renders: {renderCount}
+          </span>
+        </h2>
 
-      <div>
-        <h3>Basic Info</h3>
-        <p><strong>Name:</strong> {user.name}</p>
-        <p><strong>Email:</strong> {user.email}</p>
-        <p><strong>Theme:</strong> {user.preferences.theme}</p>
-
-        <button className="button" onClick={updateName}>
-          Change Name
-        </button>
-        <button className="button" onClick={toggleTheme}>
-          Toggle Theme
-        </button>
-        <button className="button danger" onClick={resetUser}>
-          Reset User
-        </button>
-      </div>
-
-      <div className="method-demo">
-        <h4>Tags Management ($merge, push, splice)</h4>
         <div>
-          {user.preferences.tags.map((tag: any, index: number) => (
-            <span
-              key={index}
-              className="array-item"
-              style={{ display: 'inline-block', margin: '4px' }}
-            >
-              {tag}
-              <button
-                className="button danger"
-                style={{ marginLeft: '8px', padding: '2px 6px' }}
-                onClick={() => removeTag(index)}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-        <div style={{ marginTop: '12px' }}>
-          <input
-            className="input"
-            type="text"
-            value={newTag}
-            onChange={(e) => setNewTag(e.target.value)}
-            placeholder="Add new tag"
-            onKeyPress={(e) => e.key === 'Enter' && addTag()}
-          />
-          <button className="button success" onClick={addTag}>
-            Add Tag
+          <h3>Basic Info</h3>
+          <p><strong>Name:</strong> {user.name}</p>
+          <p><strong>Email:</strong> {user.email}</p>
+          <p suppressHydrationWarning><strong>Theme:</strong> {user.preferences.theme}</p>
+
+          <button className="button" onClick={updateName}>
+            Change Name
+          </button>
+          <button className="button" onClick={toggleTheme}>
+            Toggle Theme
+          </button>
+          <button className="button danger" onClick={resetUser}>
+            Reset User
           </button>
         </div>
-      </div>
 
-      <div className="json-output">
-        {JSON.stringify(user.raw(), null, 2)}
+        <div className="method-demo">
+          <h4>Tags Management ($merge, push, splice)</h4>
+          <div>
+            {user.preferences.tags.map((tag: any, index: number) => (
+              <span
+                key={index}
+                className="array-item"
+                style={{ display: 'inline-block', margin: '4px' }}
+              >
+                {tag}
+                <button
+                  className="button danger"
+                  style={{ marginLeft: '8px', padding: '2px 6px' }}
+                  onClick={() => removeTag(index)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            <input
+              className="input"
+              type="text"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              placeholder="Add new tag"
+              onKeyPress={(e) => e.key === 'Enter' && addTag()}
+            />
+            <button className="button success" onClick={addTag}>
+              Add Tag
+            </button>
+          </div>
+        </div>
+
+        <div className="json-output">
+          {JSON.stringify(user.raw(), null, 2)}
+        </div>
       </div>
-    </div>
+    </Suspense>
   );
 }
 
@@ -391,7 +393,7 @@ function SelectiveRenderingDemo() {
         <div className="comparison-card">
           <h3>Last Action</h3>
           <p><strong>{lastAction}</strong></p>
-          <p style={{ fontSize: '0.9rem', color: '#666' }}>
+          <p style={{ fontSize: '0.9rem', color: '#666' }} suppressHydrationWarning>
             {new Date(timestamp).toLocaleTimeString()}
           </p>
         </div>

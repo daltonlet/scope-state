@@ -1,6 +1,7 @@
 import { notifyListeners } from './listeners';
 import { proxyConfig, monitoringConfig } from '../config';
 import type { CustomMethods, CustomArrayMethods } from '../types';
+import { trackPathAccess } from './tracking';
 
 // Track proxy to path mapping for type-safe activation
 export const proxyPathMap = new WeakMap<object, string[]>();
@@ -278,14 +279,7 @@ export function createAdvancedProxy<T extends object>(
       }
 
       // Track path access for dependency tracking (inline to avoid circular dependency)
-      if (typeof require !== 'undefined') {
-        try {
-          const { trackPathAccess } = require('./tracking');
-          trackPathAccess(currentPropPath);
-        } catch (e) {
-          // Skip tracking if module not available
-        }
-      }
+      trackPathAccess(currentPropPath);
 
       const value = obj[prop as keyof T];
 

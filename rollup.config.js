@@ -11,7 +11,7 @@ export default [
       format: 'esm',
       sourcemap: true,
     },
-    external: ['react', 'localforage', 'localforage-driver-memory'],
+    external: ['react'],
     plugins: [
       resolve(),
       commonjs(),
@@ -20,6 +20,9 @@ export default [
         declaration: true,
         declarationDir: 'dist',
         declarationMap: true,
+        allowJs: true,
+        esModuleInterop: true,
+        composite: true,
       }),
     ],
   },
@@ -31,13 +34,12 @@ export default [
       format: 'cjs',
       sourcemap: true,
     },
-    external: ['react', 'localforage', 'localforage-driver-memory'],
+    external: ['react'],
     plugins: [
       resolve(),
       commonjs(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false,
       }),
     ],
   },

@@ -7,28 +7,31 @@
 		"dev": "next dev",
 		"build": "next build",
 		"start": "next start",
-		"lint": "next lint"
+		"lint": "eslint ."
 	},
 	"dependencies": {
-		"react": "^18.2.0",
-		"react-dom": "^18.2.0",
-		"next": "^14.0.0",
-		"scope-state": "file:../..",
-		"lucide-react": "^0.263.1"
+		"babel-plugin-react-compiler": "^1.0.0",
+		"lucide-react": "^0.263.1",
+		"next": "16.1.6",
+		"react": "19.2.4",
+		"react-dom": "19.2.4",
+		"scope-state": "file:./src/index.ts"
 	},
 	"devDependencies": {
-		"@types/react": "^18.2.21",
-		"@types/react-dom": "^18.2.7",
 		"@types/node": "^20.0.0",
-		"typescript": "^5.0.0",
-		"eslint": "^8.0.0",
-		"eslint-config-next": "^14.0.0"
+		"@types/react": "19.2.13",
+		"@types/react-dom": "19.2.3",
+		"eslint": "^9",
+		"eslint-config-next": "16.1.6",
+		"typescript": "^5.0.0"
 	},
 	"resolutions": {
 		"ajv": "^8.12.0"
 	},
 	"overrides": {
-		"ajv": "^8.12.0"
+		"ajv": "^8.12.0",
+		"@types/react": "19.2.13",
+		"@types/react-dom": "19.2.3"
 	},
 	"browserslist": {
 		"production": [
