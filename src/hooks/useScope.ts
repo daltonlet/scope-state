@@ -65,6 +65,17 @@ export function useScope<T>(
   }, []);
 
   useEffect(() => {
+
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        handleChange();
+      });
+    } else {
+      setTimeout(() => {
+        handleChange();
+      }, 16);
+    }
+
     // Create path keys for subscription using the original approach
     // If trackedPaths is ['user', 'name'], create subscriptions for ['user', 'user.name']
     const pathKeys = trackedPaths.length > 0
