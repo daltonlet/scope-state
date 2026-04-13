@@ -5,6 +5,7 @@ import { trackPathAccess } from './tracking';
 
 // Track proxy to path mapping for type-safe activation
 export const proxyPathMap = new WeakMap<object, string[]>();
+export const proxyTargetMap = new WeakMap<object, object>();
 
 // Store a deep clone of the initial store state for use with $reset
 let initialStoreState: any = {};
@@ -268,6 +269,13 @@ export function createAdvancedProxy<T extends object>(
         return Reflect.get(obj, prop, receiver);
       }
 
+      const value = Reflect.get(obj, prop, receiver);
+
+      // Functions are commands/helpers, not reactive data dependencies.
+      if (typeof value === 'function') {
+        return value;
+      }
+
       const currentPropPath = [...path, prop.toString()];
       const propPathKey = currentPropPath.join('.');
 
@@ -281,10 +289,13 @@ export function createAdvancedProxy<T extends object>(
       // Track path access for dependency tracking (inline to avoid circular dependency)
       trackPathAccess(currentPropPath);
 
-      const value = obj[prop as keyof T];
-
       // For objects, create proxies for nested values
       if (value && typeof value === 'object' && path.length < proxyConfig.maxDepth) {
+        // If value is already a proxy, return it directly to prevent double-wrapping
+        if (proxyPathMap.has(value as object)) {
+          return value;
+        }
+
         const shouldProxy = !proxyConfig.lazyProxyDeepObjects ||
           pathUsageStats.accessedPaths.has(propPathKey) ||
           pathUsageStats.modifiedPaths.has(propPathKey) ||
@@ -299,34 +310,19 @@ export function createAdvancedProxy<T extends object>(
       return value;
     },
 
-    set(obj, prop, value, receiver) {
+    set(obj, prop, value) {
       if (typeof prop === 'symbol') {
-        return Reflect.set(obj, prop, value, receiver);
+        return Reflect.set(obj, prop, value);
       }
 
       const propPath = [...path, prop.toString()];
       const propPathKey = propPath.join('.');
 
-      // Track modification
       if (proxyConfig.trackPathUsage) {
         pathUsageStats.modifiedPaths.add(propPathKey);
       }
 
-      // Handle object assignment with proxying
-      if (value && typeof value === 'object' && !proxyCache.has(value)) {
-        const newPath = [...path, prop.toString()];
-        const proxiedValue = createAdvancedProxy(value as any, newPath, 0);
-        const result = Reflect.set(obj, prop, proxiedValue, receiver);
-
-        // Notify the specific property path and all parent/child paths
-        notifyListeners(propPath);
-
-        return result;
-      }
-
-      const result = Reflect.set(obj, prop, value, receiver);
-
-      // Notify the specific property path (this will also notify parent/child paths)
+      const result = Reflect.set(obj, prop, value);
       notifyListeners(propPath);
 
       return result;
@@ -358,6 +354,7 @@ export function createAdvancedProxy<T extends object>(
 
   // Track the path for this proxy
   proxyPathMap.set(proxy, [...path]);
+  proxyTargetMap.set(proxy, target);
 
   return proxy as any;
 }
@@ -379,15 +376,7 @@ function addObjectMethods<T extends object>(target: T, path: string[]): void {
             pathUsageStats.modifiedPaths.add(propPath);
           }
 
-          const newValue = (newProps as any)[key];
-          if (newValue && typeof newValue === 'object' && !proxyCache.has(newValue)) {
-            const newPath = [...currentPath, key];
-            // Use Reflect.set with this proxy as the receiver to trigger the set handler
-            Reflect.set(this, key, createAdvancedProxy(newValue, newPath, 0), this);
-          } else {
-            // Use Reflect.set with this proxy as the receiver to trigger the set handler
-            Reflect.set(this, key, newValue, this);
-          }
+          Reflect.set(this, key, (newProps as any)[key], this);
         });
 
         return this;
@@ -401,29 +390,19 @@ function addObjectMethods<T extends object>(target: T, path: string[]): void {
       value: function (newProps: Partial<T>) {
         const currentPath = proxyPathMap.get(this) || path;
 
-        // Clear existing properties
         Object.keys(this).forEach(key => {
           if (typeof (this as any)[key] !== 'function') {
             Reflect.deleteProperty(this, key);
           }
         });
 
-        // Set new properties
         Object.keys(newProps || {}).forEach(key => {
           if (proxyConfig.trackPathUsage) {
             const propPath = [...currentPath, key].join('.');
             pathUsageStats.modifiedPaths.add(propPath);
           }
 
-          const newValue = (newProps as any)[key];
-          if (newValue && typeof newValue === 'object' && !proxyCache.has(newValue)) {
-            const newPath = [...currentPath, key];
-            // Use Reflect.set with this proxy as the receiver to trigger the set handler
-            Reflect.set(this, key, createAdvancedProxy(newValue, newPath, 0), this);
-          } else {
-            // Use Reflect.set with this proxy as the receiver to trigger the set handler
-            Reflect.set(this, key, newValue, this);
-          }
+          Reflect.set(this, key, (newProps as any)[key], this);
         });
 
         return this;
@@ -460,14 +439,8 @@ function addObjectMethods<T extends object>(target: T, path: string[]): void {
         }
 
         const currentValue = (this as any)[key];
-        let newValue = updater(currentValue);
+        const newValue = updater(currentValue);
 
-        if (newValue && typeof newValue === 'object' && !proxyCache.has(newValue)) {
-          const newPath = [...currentPath, key as string];
-          newValue = createAdvancedProxy(newValue as any, newPath, 0);
-        }
-
-        // Use Reflect.set with this proxy as the receiver to trigger the set handler
         Reflect.set(this, key as string | symbol, newValue, this);
 
         return this;
@@ -533,22 +506,15 @@ function addObjectMethods<T extends object>(target: T, path: string[]): void {
  * Add custom methods to array targets
  */
 function addArrayMethods<T>(target: T[], path: string[]): void {
-  const originalPush = target.push;
-  const originalSplice = target.splice;
+  const originalPush = Array.prototype.push as (...items: T[]) => number;
+  const originalSplice = Array.prototype.splice as (start: number, deleteCount?: number, ...items: T[]) => T[];
 
   // Override push
   Object.defineProperty(target, 'push', {
     value: function (...items: T[]) {
       const currentPath = proxyPathMap.get(this) || path;
-      const processedItems = items.map(item => {
-        if (item && typeof item === 'object' && !proxyCache.has(item)) {
-          const itemPath = [...currentPath, '_item'];
-          return createAdvancedProxy(item as any, itemPath, 0);
-        }
-        return item;
-      });
 
-      const result = originalPush.apply(this, processedItems);
+      const result = originalPush.apply(this, items);
 
       if (currentPath.length > 0) {
         if (proxyConfig.trackPathUsage) {
@@ -569,26 +535,16 @@ function addArrayMethods<T>(target: T[], path: string[]): void {
       const currentPath = proxyPathMap.get(this) || path;
       const arrayLength = this.length;
 
-      const processedItems = items.map((item, index) => {
-        if (item && typeof item === 'object' && !proxyCache.has(item)) {
-          const itemPath = [...currentPath, (start + index).toString()];
-          return createAdvancedProxy(item as any, itemPath, 0);
-        }
-        return item;
-      });
-
       const actualDeleteCount = deleteCount === undefined ? (arrayLength - start) : deleteCount;
-      const result = originalSplice.apply(this, [start, actualDeleteCount, ...processedItems]);
+      const result = originalSplice.apply(this, [start, actualDeleteCount, ...items]);
 
       if (currentPath.length > 0) {
         if (proxyConfig.trackPathUsage) {
           pathUsageStats.modifiedPaths.add(currentPath.join('.'));
         }
 
-        // Notify the array itself
         notifyListeners(currentPath);
 
-        // Also notify about each index that was affected
         for (let i = start; i < arrayLength; i++) {
           const indexPath = [...currentPath, i.toString()];
           notifyListeners(indexPath);
@@ -613,15 +569,7 @@ function addArrayMethods<T>(target: T[], path: string[]): void {
         const currentPath = proxyPathMap.get(this) || path;
         this.length = 0;
 
-        const processedItems = newArray.map((item, index) => {
-          if (item && typeof item === 'object' && !proxyCache.has(item)) {
-            const itemPath = [...currentPath, index.toString()];
-            return createAdvancedProxy(item as any, itemPath, 0);
-          }
-          return item;
-        });
-
-        originalPush.apply(this, processedItems);
+        originalPush.apply(this, newArray);
 
         if (currentPath.length > 0) {
           if (proxyConfig.trackPathUsage) {
@@ -659,16 +607,8 @@ function addArrayMethods<T>(target: T[], path: string[]): void {
 
         this.length = 0;
 
-        const processedItems = initialValue.map((item: any, index: number) => {
-          if (item && typeof item === 'object' && !proxyCache.has(item)) {
-            const itemPath = [...currentPath, index.toString()];
-            return createAdvancedProxy(item as any, itemPath, 0);
-          }
-          return item;
-        });
-
-        if (processedItems.length > 0) {
-          originalPush.apply(this, processedItems);
+        if (initialValue.length > 0) {
+          originalPush.apply(this, JSON.parse(JSON.stringify(initialValue)));
         }
 
         if (currentPath.length > 0) {

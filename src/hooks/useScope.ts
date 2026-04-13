@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { subscribe } from '../core/listeners';
 import { trackDependencies } from '../core/tracking';
 import { pathUsageStats, selectorPaths } from '../core/proxy';
-import type { CustomMethods, CustomArrayMethods } from '../types';
+import { createReadonlySnapshot } from '../core/snapshot';
+import type { ScopeSnapshot } from '../types';
 
 /**
  * Hook to subscribe to the global store and re-render when specific data changes.
@@ -11,15 +12,16 @@ import type { CustomMethods, CustomArrayMethods } from '../types';
  * re-renders the component when those specific paths change. This provides
  * fine-grained reactivity without unnecessary renders.
  * 
- * For objects, the returned value includes custom methods ($merge, $set, $delete, $update)
- * that allow you to modify the data directly and trigger reactive updates.
+ * The returned value is a read-only snapshot of the selected state. Mutate the
+ * store through the main `$` proxy (or a proxy created explicitly for commands),
+ * and use the hook return value only for rendering.
  * 
  * @example
  * // Subscribe to user data
  * const user = useScope(() => $.user);
  * 
- * // Update user data directly (triggers re-render only for components using $.user)
- * user.$merge({ name: 'New Name' });
+ * // Mutate through the main store proxy
+ * $.user.$merge({ name: 'New Name' });
  * 
  * // Subscribe to a specific property
  * const userName = useScope(() => $.user.name);
@@ -28,22 +30,24 @@ import type { CustomMethods, CustomArrayMethods } from '../types';
  * const isAdmin = useScope(() => $.user.role === 'admin');
  * 
  * @param selector - Function that returns the data you want to subscribe to
- * @returns The selected data, with custom methods attached if it's an object
+ * @returns A read-only snapshot of the selected data
  */
 export function useScope<T>(
   selector: () => T
-): T extends object
-  ? T & CustomMethods<T>
-  : T extends Array<infer U>
-  ? U[] & CustomArrayMethods<U>
-  : T {
+): ScopeSnapshot<T> {
 
-  // Use ref to store the latest selector to avoid stale closures
-  const selectorRef = useRef(selector);
-  selectorRef.current = selector;
+  const snapshotCacheRef = useRef<{
+    revision: number;
+    source: unknown;
+    snapshot: unknown;
+  }>({
+    revision: -1,
+    source: undefined,
+    snapshot: undefined,
+  });
 
-  // Track dependencies and get initial value with advanced tracking
-  const { value: initialValue, paths: trackedPaths } = trackDependencies(selector);
+  // Track dependencies and get the selected value from the store
+  const { value: selectedValue, paths: trackedPaths } = trackDependencies(selector);
 
   // Add tracked paths to selector paths for ultra-selective proxying
   trackedPaths.forEach(path => {
@@ -51,9 +55,9 @@ export function useScope<T>(
     pathUsageStats.subscribedPaths.add(path);
   });
 
-  // Use a counter to force re-renders instead of storing the value
-  // This way we always return the fresh proxy object from the selector
-  const [, forceUpdate] = useState(0);
+  // Use a counter to invalidate the cached snapshot only when this hook
+  // receives a relevant store notification.
+  const [revision, forceUpdate] = useState(0);
 
   // Create stable update handler that forces re-render
   const handleChange = useCallback(() => {
@@ -95,10 +99,20 @@ export function useScope<T>(
     };
   }, [trackedPaths.join(','), handleChange]); // Stable dependencies
 
-  // Always return the fresh result from the selector (preserves proxy and methods)
-  return selectorRef.current() as (T extends object
-    ? T & CustomMethods<T>
-    : T extends Array<infer U>
-    ? U[] & CustomArrayMethods<U>
-    : T);
+  if (selectedValue === null || typeof selectedValue !== 'object') {
+    return selectedValue as ScopeSnapshot<T>;
+  }
+
+  if (
+    snapshotCacheRef.current.revision !== revision ||
+    snapshotCacheRef.current.source !== selectedValue
+  ) {
+    snapshotCacheRef.current = {
+      revision,
+      source: selectedValue,
+      snapshot: createReadonlySnapshot(selectedValue),
+    };
+  }
+
+  return snapshotCacheRef.current.snapshot as ScopeSnapshot<T>;
 } 

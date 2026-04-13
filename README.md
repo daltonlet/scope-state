@@ -170,7 +170,10 @@ const TodoList = () => {
 ### Core Functions
 
 #### `useScope(selector)`
-Subscribe to reactive state changes.
+Subscribe to reactive state changes and receive a read-only snapshot for rendering.
+
+Mutate state through the main `$` proxy. The value returned from `useScope()` is
+intended for reads only.
 
 ```tsx
 // Subscribe to entire object
@@ -184,6 +187,10 @@ const isAdmin = useScope(() => $.user.role === 'admin');
 
 // Subscribe to array
 const todos = useScope(() => $.todos);
+
+// Mutate through the main store proxy
+$.user.$merge({ name: 'John' });
+$.todos.push({ id: 1, text: 'Ship feature', completed: false });
 ```
 
 #### `configure(options)`

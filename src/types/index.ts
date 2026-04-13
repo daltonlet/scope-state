@@ -46,6 +46,16 @@ export interface CustomArrayMethods<T> {
   splice: (start: number, deleteCount?: number, ...items: T[]) => T[];
 
   /**
+   * Replaces the entire array with a new one.
+   */
+  $set: (newArray: T[]) => T[];
+
+  /**
+   * Resets the array to its initial configured state.
+   */
+  $reset: () => T[];
+
+  /**
    * Returns a pure JavaScript array without proxies or custom methods.
    */
   raw: () => DeepUnproxied<T[]>;
@@ -60,6 +70,20 @@ export type DeepUnproxied<T> = T extends Array<infer U>
   ? DeepUnproxied<U>[]
   : T extends object
   ? { [K in keyof T]: T[K] extends Function ? never : DeepUnproxied<T[K]> }
+  : T;
+
+/**
+ * Read-only snapshot type returned by useScope().
+ *
+ * This strips proxy methods/functions and makes the selected value immutable
+ * from the component's perspective while preserving the original data shape.
+ */
+export type ScopeSnapshot<T> = T extends Array<infer U>
+  ? ReadonlyArray<ScopeSnapshot<U>>
+  : T extends object
+  ? {
+    readonly [K in keyof T as T[K] extends Function ? never : K]: ScopeSnapshot<T[K]>;
+  }
   : T;
 
 /**

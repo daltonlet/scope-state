@@ -32,6 +32,7 @@ export type {
   MaybePromise,
   CustomMethods,
   CustomArrayMethods,
+  ScopeSnapshot,
   StoreType,
   MonitoringStats,
   ProxyCacheStats,

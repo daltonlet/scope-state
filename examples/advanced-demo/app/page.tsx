@@ -138,7 +138,7 @@ function UserProfileDemo() {
         </div>
 
         <div className="json-output">
-          {JSON.stringify(user.raw(), null, 2)}
+          {JSON.stringify(user, null, 2)}
         </div>
       </div>
     </Suspense>
@@ -206,7 +206,7 @@ function TodoListDemo() {
   };
 
   const resetTodos = () => {
-    todos.$reset();
+    $.todos.$reset();
     $.demo.$merge({
       lastAction: 'Reset todos to initial state',
       timestamp: Date.now()
