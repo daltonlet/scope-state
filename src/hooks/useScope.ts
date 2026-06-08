@@ -80,11 +80,7 @@ export function useScope<T>(
       }, 16);
     }
 
-    // Create path keys for subscription using the original approach
-    // If trackedPaths is ['user', 'name'], create subscriptions for ['user', 'user.name']
-    const pathKeys = trackedPaths.length > 0
-      ? trackedPaths.map((_, index, array) => array.slice(0, index + 1).join('.'))
-      : [''];
+    const pathKeys = trackedPaths.length > 0 ? trackedPaths : [''];
 
     // Subscribe to all relevant paths
     const unsubscribeFunctions = pathKeys.map(pathKey => {

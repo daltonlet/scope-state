@@ -1,6 +1,6 @@
 {
 	"name": "scope-state-advanced-demo",
-	"version": "0.1.0",
+	"version": "0.1.7",
 	"description": "Advanced demo showcasing all Scope State features",
 	"private": true,
 	"scripts": {

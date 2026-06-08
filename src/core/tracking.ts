@@ -1,35 +1,30 @@
 import { proxyConfig } from '../config';
 import { selectorPaths, pathUsageStats } from './proxy';
 
-// Track the current path we're accessing during a selector function
-let currentPath: string[] = [];
+// Unique full dotted paths accessed during selector execution
+let trackedPaths: Set<string> = new Set();
 let isTracking = false;
 let skipTrackingDepth = 0;
 
 /**
- * Track dependencies during selector execution - tracks individual path segments
+ * Track dependencies during selector execution - tracks full dotted paths
  */
 export function trackDependencies<T>(selector: () => T): { value: T, paths: string[] } {
-  // Start tracking
   isTracking = true;
-  currentPath = [];
+  trackedPaths = new Set();
   skipTrackingDepth = 0;
 
-  // Execute selector to track dependencies
   const value = selector();
 
-  // Stop tracking and get the tracked paths
   isTracking = false;
 
-  // Clean up and return individual path segments (not full paths)
-  const cleanedPaths = [...currentPath].filter(segment => {
-    // Filter out segments that would create overly long paths
-    return segment && segment.length < 100; // Basic length check for individual segments
-  });
+  const paths = Array.from(trackedPaths).filter(path =>
+    path && path.length < 500
+  );
 
-  currentPath = [];
+  trackedPaths = new Set();
 
-  return { value, paths: cleanedPaths };
+  return { value, paths };
 }
 
 /**
@@ -52,35 +47,56 @@ export function skipTracking<T>(fn: () => T): T {
 }
 
 /**
+ * Run fn while capturing any newly tracked paths, then remove them from the main set.
+ * Caller decides whether to re-add captured paths (e.g. on a matched find iteration).
+ */
+export function capturePathsDuring<T>(fn: () => T): { value: T; paths: string[] } {
+  const snapshot = new Set(trackedPaths);
+  const value = fn();
+  const newPaths: string[] = [];
+
+  trackedPaths.forEach(path => {
+    if (!snapshot.has(path)) {
+      newPaths.push(path);
+      trackedPaths.delete(path);
+    }
+  });
+
+  return { value, paths: newPaths };
+}
+
+/**
+ * Add paths to the active tracking set (used by smart array method overrides)
+ */
+export function addTrackedPaths(paths: string[]): void {
+  if (!isTracking) return;
+  paths.forEach(path => trackedPaths.add(path));
+}
+
+/**
  * Get current tracking state (for debugging)
  */
 export function getTrackingState(): {
   isTracking: boolean;
-  currentPath: string[];
+  trackedPaths: string[];
   skipDepth: number;
 } {
   return {
     isTracking,
-    currentPath: [...currentPath],
+    trackedPaths: Array.from(trackedPaths),
     skipDepth: skipTrackingDepth,
   };
 }
 
 /**
- * Add a path segment to tracking during proxy get operations
+ * Add a full path to tracking during proxy get operations
  */
 export function trackPathAccess(path: string[]): void {
   if (!isTracking || skipTrackingDepth > 0) return;
 
-  // Track only the last property name (individual segment)
-  const prop = path[path.length - 1];
-
-  // Only track if prop exists and path isn't too deep
-  if (prop && path.length <= proxyConfig.maxPathLength) {
-    currentPath.push(prop);
-
-    // Add full path to usage stats and selector paths for ultra-selective proxying
+  if (path.length <= proxyConfig.maxPathLength) {
     const fullPath = path.join('.');
+    trackedPaths.add(fullPath);
     pathUsageStats.accessedPaths.add(fullPath);
     selectorPaths.add(fullPath);
   }
@@ -92,10 +108,7 @@ export function trackPathAccess(path: string[]): void {
 export function trackPathModification(path: string[]): void {
   const pathStr = path.join('.');
 
-  // Add to modification tracking
   pathUsageStats.modifiedPaths.add(pathStr);
-
-  // Also mark as accessed
   pathUsageStats.accessedPaths.add(pathStr);
 }
 
@@ -104,6 +117,6 @@ export function trackPathModification(path: string[]): void {
  */
 export function resetTracking(): void {
   isTracking = false;
-  currentPath = [];
+  trackedPaths = new Set();
   skipTrackingDepth = 0;
-} 
+}

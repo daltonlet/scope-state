@@ -1,7 +1,13 @@
 import { notifyListeners } from './listeners';
 import { proxyConfig, monitoringConfig } from '../config';
 import type { CustomMethods, CustomArrayMethods } from '../types';
-import { trackPathAccess } from './tracking';
+import {
+  trackPathAccess,
+  isCurrentlyTracking,
+  skipTracking,
+  capturePathsDuring,
+  addTrackedPaths,
+} from './tracking';
 
 // Track proxy to path mapping for type-safe activation
 export const proxyPathMap = new WeakMap<object, string[]>();
@@ -524,6 +530,39 @@ function addArrayMethods<T>(target: T[], path: string[]): void {
       }
 
       return result;
+    },
+    writable: true,
+    configurable: true
+  });
+
+  // Override find with smart tracking during dependency collection
+  Object.defineProperty(target, 'find', {
+    value: function (
+      predicate: (value: T, index: number, array: T[]) => unknown,
+      thisArg?: unknown
+    ) {
+      if (!isCurrentlyTracking() || !proxyConfig.smartArrayTracking) {
+        return Array.prototype.find.call(this, predicate, thisArg);
+      }
+
+      const currentPath = proxyPathMap.get(this) || path;
+      const length = skipTracking(() => this.length);
+
+      for (let i = 0; i < length; i++) {
+        const element = skipTracking(() => Reflect.get(this, i));
+
+        const { value: matched, paths } = capturePathsDuring(() =>
+          Boolean(predicate.call(thisArg, element, i, this))
+        );
+
+        if (matched) {
+          addTrackedPaths([[...currentPath, String(i)].join('.')]);
+          addTrackedPaths(paths);
+          return element;
+        }
+      }
+
+      return undefined;
     },
     writable: true,
     configurable: true
